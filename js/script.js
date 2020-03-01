@@ -1,22 +1,24 @@
-var DVizModule = (() => {
+var Chart = (() => {
 
-    const margin = {
-            top: 20,
-            right: 0,
-            bottom: 30,
-            left: 40
-        };
+    let svg = {
+            width: undefined,
+            height: undefined,
+            margin: {
+                top: 20,
+                right: 0,
+                bottom: 30,
+                left: 40
+            },
+            barHeight: 25
+        },
+        data,
+        xScale, yScale,
+        xAxis, yAxis,
+        format;
 
-        let xScale, yScale,
-        xAxis, yAxis, format;
-
-    async function svgView(dataset) {
-        dataset = await loadData();
-        const barHeight = 25;
-        return {
-            width: 954,
-            height: dataset.length * barHeight + margin.top + margin.bottom
-        }
+    function init(data) {
+        svg.width = 954;
+        svg.height = data.length * svg.barHeight + svg.margin.top + svg.margin.bottom;
     }
 
     function loadData() {
@@ -27,45 +29,38 @@ var DVizModule = (() => {
        }));
     }
 
-    async function formatData(dataset) {
-        dataset = await loadData();
-        dataset.sort((a, b) => b.value - a.value);
-        return dataset;
+    function formatData(data) {
+        data.sort((a, b) => b.value - a.value);
+        return data;
     }
 
-    async function scaleData(dataset) {
-        dataset = await formatData();
-        svg = await svgView();
+    function scaleData(data, svg) {
 
         xScale = d3.scaleLinear()
-            .domain([0, d3.max(dataset, d => d.value)]).nice()
-            .range([margin.left, svg.width - margin.right]);
+            .domain([0, d3.max(data, d => d.value)]).nice()
+            .range([svg.margin.left, svg.width - svg.margin.right]);
 
         yScale = d3.scaleBand()
-            .domain(d3.range(dataset.length))
-            .range([margin.top, svg.height - margin.bottom])
+            .domain(d3.range(data.length))
+            .range([svg.margin.top, svg.height - svg.margin.bottom])
             .padding(0.1);
 
         format = xScale.tickFormat(20);
     }
 
-    async function axisData(dataset) {
-        dataset = await formatData();
-        svg = await svgView();
+    function axisData(data, svg) {
 
         xAxis = g => g
-            .attr("transform", `translate(0, ${margin.top})`)
+            .attr("transform", `translate(0, ${svg.margin.top})`)
             .call(d3.axisTop(xScale).ticks(svg.width / 80))
             .call(g => g.select(".domain").remove());
 
         yAxis = g => g
-            .attr("transform", `translate(${margin.left}, 0)`)
-            .call(d3.axisLeft(yScale).tickFormat(i => dataset[i].name).tickSizeOuter(0));
+            .attr("transform", `translate(${svg.margin.left}, 0)`)
+            .call(d3.axisLeft(yScale).tickFormat(i => data[i].name).tickSizeOuter(0));
     }
 
-    async function plotData(dataset) {
-        dataset = await formatData();
-        svg = await svgView();
+    function plotData(data, svg) {
 
         const chart = d3.select("#chart")
             .append("svg")
@@ -75,7 +70,7 @@ var DVizModule = (() => {
         chart.append("g")
             .attr("fill", "#4c1f92")
             .selectAll("rect")
-            .data(dataset)
+            .data(data)
             .join("rect")
             .attr("y", (d, i) => yScale(i))
             .attr("x", xScale(0))
@@ -84,7 +79,7 @@ var DVizModule = (() => {
 
         chart.append("g")
             .selectAll("text")
-            .data(dataset)
+            .data(data)
             .join("text")
             .attr("fill", "#fff")
             .attr("font-size", "10px")
@@ -101,13 +96,30 @@ var DVizModule = (() => {
         .call(yAxis);
     }
 
-    formatData();
-    scaleData();
-    axisData();
-    plotData();
+    return {
+        data,
+        svg,
+        init,
+        loadData,
+        formatData,
+        scaleData,
+        axisData,
+        plotData
+    }
 
 })();
 
+
+(async () => {
+
+    Chart.data = await Chart.loadData(); // load raw dataset
+    Chart.data = Chart.formatData(Chart.data); // format dataset
+    Chart.init(Chart.data); // initiate chart options based on data
+    Chart.scaleData(Chart.data, Chart.svg); // setting domain and range
+    Chart.axisData(Chart.data, Chart.svg); // setting axis X and Y
+    Chart.plotData(Chart.data, Chart.svg); // draw the chart
+
+})();
 
 
 
